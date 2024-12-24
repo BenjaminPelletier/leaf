@@ -1,4 +1,4 @@
-name: Arduino
+name: Arduino foo
 
 on:
   pull_request: # All
