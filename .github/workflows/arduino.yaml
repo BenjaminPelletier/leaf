@@ -1,4 +1,4 @@
-name: Arduino
+name: Arduino foo
 
 on:
   pull_request: # All
@@ -19,9 +19,9 @@ jobs:
         uses: arduino/compile-sketches@v1
         with:
           fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PartitionScheme=default_8MB
-          sketch-paths:
+          sketch-paths: |
             - ./src/vario
-          libraries:
+          libraries: |
             - name: "TinyGPSPlus-ESP32"
               version: 0.0.2
             - name: U8g2
