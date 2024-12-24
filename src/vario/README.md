@@ -1,3 +1,4 @@
+
 ## Required libraries
 
 See list of required libraries in the `libraries` section of the [Arduino workflow](../../.github/workflows/arduino.yaml).
