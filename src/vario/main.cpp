@@ -60,7 +60,7 @@ void setup() {
   if (!settings.dev_startDisconnected) {
     Serial.println("Connecting hardware devices to bus");
     AHT20::getInstance().publishTo(&bus);
-    ICM20948::getInstance().publishTo(&bus);
+    icm20948.publishTo(&bus);
     lc86g.publishTo(&bus);
     ms5611.publishTo(&bus);
   } else {

@@ -145,8 +145,6 @@ void Power::initPeripherals() {
   Serial.println(" - Finished display");
   ms5611.init();
   Serial.println(" - Finished Baro");
-  ICM20948::getInstance().init();
-  Serial.println(" - Finished IMU");
   AHT20::getInstance().init();
   Serial.println(" - Finished Temp Humid");
 

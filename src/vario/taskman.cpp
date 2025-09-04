@@ -329,7 +329,7 @@ void TaskManager::doNecessaryTasks(void) {
     performTask.estimateWind = false;
   }
   if (performTask.imu) {
-    ICM20948::getInstance().update();
+    icm20948.update();
     performTask.imu = false;
   }
   if (performTask.gps) {

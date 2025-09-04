@@ -137,13 +137,13 @@ void UDPMessageServer::onCommand(const char* line, size_t len) {
   if (equals_const(line, len, "!Disconnect sensors")) {
     Serial.println("Disconnecting HW sensors via UDP");
     AHT20::getInstance().stopPublishing();
-    ICM20948::getInstance().stopPublishing();
+    icm20948.stopPublishing();
     lc86g.stopPublishing();
     ms5611.stopPublishing();
   } else if (equals_const(line, len, "!Reconnect sensors")) {
     Serial.println("Reconnecting HW sensors via UDP");
     AHT20::getInstance().publishTo(bus_);
-    ICM20948::getInstance().publishTo(bus_);
+    icm20948.publishTo(bus_);
     lc86g.publishTo(bus_);
     ms5611.publishTo(bus_);
   } else if (equals_const(line, len, "!Reset reference time")) {
