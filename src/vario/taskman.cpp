@@ -41,6 +41,9 @@ SET_LOOP_TASK_STACK_SIZE(16 * 1024);  // 16KB
 
 #define DEBUG_MAIN_LOOP false
 
+// Maximum amount of time a task can take before showing a warning in the log
+constexpr unsigned long MAX_TASK_LENGTH_MS = 250;
+
 namespace {
   std::atomic<bool> timerISRsSetup{false};
 
@@ -224,13 +227,21 @@ void TaskManager::updateWhileOn() {
   // GPS Serial Buffer Read
   // stop reading if no more data is available, OR, if our 10ms time block is up (because main timer
   // interrupt fired and set setTasks to true)
+  unsigned long tStart = millis();
   bool gpsHasData = true;
   while (gpsHasData && !nextTaskTimerBlock.load(std::memory_order_acquire)) {
     gpsHasData = lc86g.readLine();
   }
+  unsigned long dt = millis() - tStart;
+  if (dt > MAX_TASK_LENGTH_MS) {
+    Serial.printf("TaskManager::updateWhileOn GPS read took %dms\n", dt);
+  }
 }
 
 void TaskManager::setNecessaryTasksForBlock() {
+  bool ms5611Updated = false;
+  unsigned long tStart = millis();
+
   // increment time counters
   if (++current10msBlock >= 10) {
     current10msBlock = 0;  // every 10 periods of 10ms, go back to 0 (100ms total)
@@ -249,6 +260,7 @@ void TaskManager::setNecessaryTasksForBlock() {
   switch (current10msBlock) {
     case 0:
       ms5611.update();  // begin updating MS5611 every 50ms on the 0th and 5th blocks
+      ms5611Updated = true;
       break;
     case 1:
       break;
@@ -262,6 +274,7 @@ void TaskManager::setNecessaryTasksForBlock() {
       break;
     case 5:
       ms5611.update();  // begin updating MS5611 every 50ms on the 0th and 5th blocks
+      ms5611Updated = true;
       break;
     case 6:
       break;
@@ -299,61 +312,123 @@ void TaskManager::setNecessaryTasksForBlock() {
         performTask.tempRH = true;  // read and process temp & humidity measurement
       break;
   }
+
+  unsigned long dt = millis() - tStart;
+  if (dt > MAX_TASK_LENGTH_MS) {
+    Serial.printf("setNecessaryTasksForBlock took %dms; ms5611.update = %d\n", dt, ms5611Updated);
+  }
 }
 
 // execute necessary tasks while we're awake and have things to do
 void TaskManager::doNecessaryTasks(void) {
+  unsigned long tTasksStart = millis();
   // just for capturing start time of taskmanager loop
   if (performTask.buttons && DEBUG_MAIN_LOOP) {
     tNecessaryTasksStart = micros();
     performedNecessaryTasks = true;
   }
 
+  ManagedTasks performed = performTask;
   // Do MS5611 first, because the ADC prep & read cycle is time dependent (must have >9ms between
   // prep & read).  If other tasks delay the start of the MS5611 prep step by >1ms, then next cycle
   // when we read ADC, the MS5611 won't be ready.
   if (performTask.baro) {
+    unsigned long tStart = millis();
     ms5611.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("ms5611.update took %dms\n", dt);
+    }
     performTask.baro = false;
   }
   if (performTask.buttons) {
+    unsigned long tStart = millis();
     buttons.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("buttons.update took %dms\n", dt);
+    }
     performTask.buttons = false;
   }
   if (performTask.speakerTimer) {
+    unsigned long tStart = millis();
     speaker.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("speaker.update took %dms\n", dt);
+    }
     performTask.speakerTimer = false;
   }
   if (performTask.estimateWind) {
+    unsigned long tStart = millis();
     windEstimator.estimateWind();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("windEstimator.estimateWind took %dms\n", dt);
+    }
     performTask.estimateWind = false;
   }
   if (performTask.imu) {
+    unsigned long tStart = millis();
     ICM20948::getInstance().update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("ICM20948::update took %dms\n", dt);
+    }
     performTask.imu = false;
   }
   if (performTask.gps) {
+    unsigned long tStart = millis();
     gps.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("gps.update took %dms\n", dt);
+    }
     performTask.gps = false;
   }
   if (performTask.power) {
+    unsigned long tStart = millis();
     power.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("power.update took %dms\n", dt);
+    }
     performTask.power = false;
   }
   if (performTask.log) {
+    unsigned long tStart = millis();
     log_update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("log.update took %dms\n", dt);
+    }
     performTask.log = false;
   }
   if (performTask.display) {
+    unsigned long tStart = millis();
     display.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("display.update took %dms\n", dt);
+    }
     performTask.display = false;
   }
   if (performTask.tempRH) {
+    unsigned long tStart = millis();
     aht20.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("aht20.update took %dms\n", dt);
+    }
     performTask.tempRH = false;
   }
   if (performTask.sdCard) {
+    unsigned long tStart = millis();
     sdcard.update();
+    unsigned long dt = millis() - tStart;
+    if (dt > MAX_TASK_LENGTH_MS) {
+      Serial.printf("sdcard.update took %dms\n", dt);
+    }
     performTask.sdCard = false;
   }
 #ifdef MEMORY_PROFILING
@@ -372,5 +447,22 @@ void TaskManager::doNecessaryTasks(void) {
     Serial.print((uint8_t)current100msBlock);
     Serial.print(" taskTime: ");
     Serial.println(dt);
+  }
+  unsigned long dt = millis() - tTasksStart;
+  if (dt > MAX_TASK_LENGTH_MS) {
+    Serial.printf("doNecessaryTasks took %dms with", dt);
+    if (performed.baro) Serial.print(" baro");
+    if (performed.buttons) Serial.print(" buttons");
+    if (performed.display) Serial.print(" display");
+    if (performed.estimateWind) Serial.print(" estimateWind");
+    if (performed.gps) Serial.print(" gps");
+    if (performed.imu) Serial.print(" imu");
+    if (performed.log) Serial.print(" log");
+    if (performed.memoryStats) Serial.print(" memoryStats");
+    if (performed.power) Serial.print(" power");
+    if (performed.sdCard) Serial.print(" sdCard");
+    if (performed.speakerTimer) Serial.print(" speakerTimer");
+    if (performed.tempRH) Serial.print(" tempRH");
+    Serial.println();
   }
 }
